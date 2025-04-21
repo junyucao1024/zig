@@ -80,7 +80,8 @@ fn dumpStatusReport() !void {
     var fba = std.heap.FixedBufferAllocator.init(&crash_heap);
     const allocator = fba.allocator();
 
-    var stderr_bw = std.fs.File.stderr().writer().unbuffered();
+    var stderr_fw = std.fs.File.stderr().writer();
+    var stderr_bw = stderr_fw.interface().unbuffered();
     const block: *Sema.Block = anal.block;
     const zcu = anal.sema.pt.zcu;
 
@@ -283,8 +284,9 @@ const StackContext = union(enum) {
                 debug.dumpCurrentStackTrace(ct.ret_addr);
             },
             .exception => |context| {
-                var stderr = std.fs.File.stderr().writer().unbuffered();
-                debug.dumpStackTraceFromBase(context, &stderr);
+                var stderr_fw = std.fs.File.stderr().writer();
+                var stderr_bw = stderr_fw.interface().unbuffered();
+                debug.dumpStackTraceFromBase(context, &stderr_bw);
             },
             .not_supported => {
                 std.fs.File.stderr().writeAll("Stack trace not supported on this platform.\n") catch {};
@@ -394,19 +396,20 @@ const PanicSwitch = struct {
 
         state.recover_stage = .release_mutex;
 
-        var stderr = std.fs.File.stderr().writer().unbuffered();
+        var stderr_fw = std.fs.File.stderr().writer();
+        var stderr_bw = stderr_fw.interface().unbuffered();
         if (builtin.single_threaded) {
-            stderr.print("panic: ", .{}) catch goTo(releaseMutex, .{state});
+            stderr_bw.print("panic: ", .{}) catch goTo(releaseMutex, .{state});
         } else {
             const current_thread_id = std.Thread.getCurrentId();
-            stderr.print("thread {} panic: ", .{current_thread_id}) catch goTo(releaseMutex, .{state});
+            stderr_bw.print("thread {} panic: ", .{current_thread_id}) catch goTo(releaseMutex, .{state});
         }
-        stderr.print("{s}\n", .{msg}) catch goTo(releaseMutex, .{state});
+        stderr_bw.print("{s}\n", .{msg}) catch goTo(releaseMutex, .{state});
 
         state.recover_stage = .report_stack;
 
         dumpStatusReport() catch |err| {
-            stderr.print("\nIntercepted error.{} while dumping current state.  Continuing...\n", .{err}) catch {};
+            stderr_bw.print("\nIntercepted error.{} while dumping current state.  Continuing...\n", .{err}) catch {};
         };
 
         goTo(reportStack, .{state});
@@ -421,8 +424,9 @@ const PanicSwitch = struct {
         recover(state, trace, stack, msg);
 
         state.recover_stage = .release_mutex;
-        var stderr = std.fs.File.stderr().writer().unbuffered();
-        stderr.writeAll("\nOriginal Error:\n") catch {};
+        var stderr_fw = std.fs.File.stderr().writer();
+        var stderr_bw = stderr_fw.interface().unbuffered();
+        stderr_bw.writeAll("\nOriginal Error:\n") catch {};
         goTo(reportStack, .{state});
     }
 
@@ -492,8 +496,9 @@ const PanicSwitch = struct {
         recover(state, trace, stack, msg);
 
         state.recover_stage = .silent_abort;
-        var stderr = std.fs.File.stderr().writer().unbuffered();
-        stderr.writeAll("Aborting...\n") catch {};
+        var stderr_fw = std.fs.File.stderr().writer();
+        var stderr_bw = stderr_fw.interface().unbuffered();
+        stderr_bw.writeAll("Aborting...\n") catch {};
         goTo(abort, .{});
     }
 
@@ -520,10 +525,11 @@ const PanicSwitch = struct {
                 // lower the verbosity, and restore it at the end if we don't panic.
                 state.recover_verbosity = .message_only;
 
-                var stderr = std.fs.File.stderr().writer().unbuffered();
-                stderr.writeAll("\nPanicked during a panic: ") catch {};
-                stderr.writeAll(msg) catch {};
-                stderr.writeAll("\nInner panic stack:\n") catch {};
+                var stderr_fw = std.fs.File.stderr().writer();
+                var stderr_bw = stderr_fw.interface().unbuffered();
+                stderr_bw.writeAll("\nPanicked during a panic: ") catch {};
+                stderr_bw.writeAll(msg) catch {};
+                stderr_bw.writeAll("\nInner panic stack:\n") catch {};
                 if (trace) |t| {
                     debug.dumpStackTrace(t.*);
                 }
@@ -534,10 +540,11 @@ const PanicSwitch = struct {
             .message_only => {
                 state.recover_verbosity = .silent;
 
-                var stderr = std.fs.File.stderr().writer().unbuffered();
-                stderr.writeAll("\nPanicked while dumping inner panic stack: ") catch {};
-                stderr.writeAll(msg) catch {};
-                stderr.writeByte('\n') catch {};
+                var stderr_fw = std.fs.File.stderr().writer();
+                var stderr_bw = stderr_fw.interface().unbuffered();
+                stderr_bw.writeAll("\nPanicked while dumping inner panic stack: ") catch {};
+                stderr_bw.writeAll(msg) catch {};
+                stderr_bw.writeByte('\n') catch {};
 
                 // If we succeed, restore all the way to dumping the stack.
                 state.recover_verbosity = .message_and_stack;
