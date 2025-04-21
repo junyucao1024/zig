@@ -258,7 +258,7 @@ pub fn updateFile(
                 file.zir = try AstGen.generate(gpa, file.tree.?);
                 Zcu.saveZirCache(gpa, cache_file, stat, file.zir.?) catch |err| switch (err) {
                     error.OutOfMemory => |e| return e,
-                    else => log.warn("unable to write cached ZIR code for {}{s} to {}{s}: {s}", .{
+                    else => log.warn("unable to write cached ZIR code for {f}{s} to {f}{s}: {s}", .{
                         file.mod.root, file.sub_file_path, cache_directory, &hex_digest, @errorName(err),
                     }),
                 };
@@ -266,7 +266,7 @@ pub fn updateFile(
             .zon => {
                 file.zoir = try ZonGen.generate(gpa, file.tree.?, .{});
                 Zcu.saveZoirCache(cache_file, stat, file.zoir.?) catch |err| {
-                    log.warn("unable to write cached ZOIR code for {}{s} to {}{s}: {s}", .{
+                    log.warn("unable to write cached ZOIR code for {f}{s} to {f}{s}: {s}", .{
                         file.mod.root, file.sub_file_path, cache_directory, &hex_digest, @errorName(err),
                     });
                 };
@@ -3252,7 +3252,7 @@ pub fn reportRetryableAstGenError(
         },
     };
 
-    const err_msg = try Zcu.ErrorMsg.create(gpa, src_loc, "unable to load '{}/{s}': {s}", .{
+    const err_msg = try Zcu.ErrorMsg.create(gpa, src_loc, "unable to load '{f}/{s}': {s}", .{
         file.mod.root, file.sub_file_path, @errorName(err),
     });
     errdefer err_msg.destroy(gpa);
