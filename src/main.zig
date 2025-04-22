@@ -6704,7 +6704,8 @@ fn cmdDumpZir(
     };
     defer file.zir.?.deinit(gpa);
 
-    var stdout_bw = fs.File.stdout().writer().buffered(&stdio_buffer);
+    var stdout_fw = fs.File.stdout().writer();
+    var stdout_bw = stdout_fw.interface().buffered(&stdio_buffer);
     {
         const instruction_bytes = file.zir.?.instructions.len *
             // Here we don't use @sizeOf(Zir.Inst.Data) because it would include
